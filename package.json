@@ -1,0 +1,30 @@
+{
+  "name": "puppteer-demo",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.ts",
+  "scripts": {
+    "build": "tsc",
+    "start": "ts-node ."
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "commander": "^12.1.0",
+    "config": "3.3.6",
+    "puppeteer": "^22.14.0",
+    "tesseract.js": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/config": "^3.3.4",
+    "@types/eslint__js": "^8.42.3",
+    "@typescript-eslint/eslint-plugin": "^4.4.0",
+    "@typescript-eslint/parser": "^4.4.0",
+    "eslint": "^7.10.0",
+    "eslint-config-airbnb-base": "^14.2.0",
+    "eslint-plugin-import": "^2.22.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.3"
+  }
+}
