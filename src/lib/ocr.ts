@@ -1,21 +1,46 @@
 import {
   createScheduler, createWorker, Worker,
-  RecognizeResult,
+  RecognizeResult, Scheduler,
 } from 'tesseract.js';
 
-const scheduler = createScheduler();
-let worker: Worker;
-
-async function recognize(image: string) :Promise<RecognizeResult> {
-  if (!worker) {
-    worker = await createWorker('eng', 1);
-    await worker.setParameters({
-      tessedit_char_whitelist: '0123456789',
-    });
-    scheduler.addWorker(worker);
-  }
-
-  return worker.recognize(image);
+export interface IOcr {
+  recognize: (imagePath: string) => Promise<RecognizeResult>
 }
 
-export default recognize;
+class TesseractService implements IOcr {
+  private scheduler: Scheduler
+
+  private worker: Worker|undefined
+
+  constructor() {
+    this.scheduler = createScheduler();
+  }
+
+  async initWorker(): Promise<void> {
+    if (this.worker) {
+      return;
+    }
+
+    this.worker = await createWorker('eng', 1, {
+      langPath: './src/lib/data',
+      cacheMethod: 'none',
+      gzip: false,
+    });
+
+    await this.worker.setParameters({
+      tessedit_char_whitelist: '0123456789',
+    });
+
+    this.scheduler.addWorker(this.worker);
+  }
+
+  async recognize(imagePath: string): Promise<RecognizeResult> {
+    if (this.worker === undefined) {
+      throw new Error('worker not init');
+    }
+
+    return this.worker.recognize(imagePath);
+  }
+}
+
+export default TesseractService;

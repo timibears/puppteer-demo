@@ -13,6 +13,7 @@
   "dependencies": {
     "commander": "^12.1.0",
     "config": "3.3.6",
+    "jimp": "^0.22.12",
     "puppeteer": "^22.14.0",
     "tesseract.js": "^5.1.0"
   },
