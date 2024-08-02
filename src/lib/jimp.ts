@@ -24,7 +24,7 @@ class JimpService implements IImageProcess {
     await this.invertImage();
     await this.fillImageGap();
     await this.image.scale(3);
-    await this.image.writeAsync('./src/screenshot/captcha-process.png');
+    await this.image.writeAsync('./src/screenshot/captchaProcess.png');
   }
 
   async readImage(path: string): Promise<void> {

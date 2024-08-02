@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import config from 'config';
+import readline from 'readline/promises';
 import MyCard from './lib/mycard';
 import { IUser } from './entity/user';
 import { LOG_IN_STATUS_ENUM } from './lib/enum';
@@ -24,6 +25,11 @@ program
 
 program.parse(process.argv);
 
+const read = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout,
+});
+
 const ocrService = new TesseractService();
 
 async function start() {
@@ -45,6 +51,10 @@ async function start() {
     await ocrService.initWorker();
 
     await mycard.login();
+
+    const verifyCode = await read.question('phone verify code:');
+
+    await mycard.verifyPhoneCode(verifyCode);
   } catch (error) {
     console.log(error);
   }
