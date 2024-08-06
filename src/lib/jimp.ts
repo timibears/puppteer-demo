@@ -1,9 +1,9 @@
 import Jimp from 'jimp';
 
 export interface IImageProcess {
-  imageProcessing: (path: string) => Promise<void>
-  readImage: (path: string) => Promise<void>
-  invertImage: () => Promise<void>
+  imageProcessing: (buffer?: Buffer) => Promise<Buffer>
+  readImageFromBuffer: (buffer: Buffer) => Promise<void>
+  readImageFromPath: (path: string) => Promise<void>
   fillImageGap: () => Promise<void>
 }
 
@@ -14,29 +14,32 @@ class JimpService implements IImageProcess {
 
   image: Jimp | undefined
 
-  async imageProcessing(path: string): Promise<void> {
-    await this.readImage(path);
-
-    if (!this.image) {
-      throw new Error('image not exist');
+  async imageProcessing(buffer?: Buffer): Promise<Buffer> {
+    if (!buffer) {
+      throw new Error('buffer not exist');
     }
+    await this.readImageFromBuffer(buffer);
 
-    await this.invertImage();
-    await this.fillImageGap();
-    await this.image.scale(3);
-    await this.image.writeAsync('./src/screenshot/captchaProcess.png');
-  }
-
-  async readImage(path: string): Promise<void> {
-    this.image = await Jimp.read(path);
-  }
-
-  async invertImage(): Promise<void> {
     if (!this.image) {
       throw new Error('image not exist');
     }
 
     await this.image.invert();
+    await this.fillImageGap();
+    await this.image.scale(3);
+
+    // writ to png image
+    await this.image.writeAsync('./src/screenshot/captchaProcess.png');
+
+    return this.image.getBufferAsync(Jimp.MIME_PNG);
+  }
+
+  async readImageFromBuffer(image: Buffer): Promise<void> {
+    this.image = await Jimp.read(image);
+  }
+
+  async readImageFromPath(path: string): Promise<void> {
+    this.image = await Jimp.read(path);
   }
 
   async fillImageGap(): Promise<void> {

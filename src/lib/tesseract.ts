@@ -4,7 +4,7 @@ import {
 } from 'tesseract.js';
 
 export interface IOcr {
-  recognize: (imagePath: string) => Promise<RecognizeResult>
+  recognize: (image: Buffer | string) => Promise<RecognizeResult>
 }
 
 class TesseractService implements IOcr {
@@ -34,12 +34,12 @@ class TesseractService implements IOcr {
     this.scheduler.addWorker(this.worker);
   }
 
-  async recognize(imagePath: string): Promise<RecognizeResult> {
+  async recognize(image: Buffer | string): Promise<RecognizeResult> {
     if (this.worker === undefined) {
       throw new Error('worker not init');
     }
 
-    return this.worker.recognize(imagePath);
+    return this.worker.recognize(image);
   }
 }
 

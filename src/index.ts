@@ -5,7 +5,8 @@ import MyCard from './lib/mycard';
 import { IUser } from './entity/user';
 import { LOG_IN_STATUS_ENUM } from './lib/enum';
 import JimpService from './lib/jimp';
-import TesseractService from './lib/ocr';
+import TesseractService from './lib/tesseract';
+import PuppeteerService from './lib/puppeteer';
 
 const program = new Command();
 
@@ -37,13 +38,13 @@ async function start() {
     username: config.get('USER.USERNAME'),
     password: config.get('USER.PASSWORD'),
     logInStatus: LOG_IN_STATUS_ENUM.UNVERIFY,
+    cookie: [],
   };
 
-  const imageProcessService = new JimpService();
-
   const mycard = new MyCard(
+    new PuppeteerService(),
     ocrService,
-    imageProcessService,
+    new JimpService(),
     me,
   );
 
@@ -54,6 +55,8 @@ async function start() {
 
     const verifyCode = await read.question('phone verify code:');
 
+    await mycard.storeCookie();
+
     await mycard.verifyPhoneCode(verifyCode);
   } catch (error) {
     console.log(error);
@@ -63,7 +66,7 @@ async function start() {
 async function crop() {
   const imageProcessService = new JimpService();
 
-  await imageProcessService.readImage('./src/screenshot/captcha.png');
+  await imageProcessService.readImageFromPath('./src/screenshot/captcha.png');
   await imageProcessService.fillImageGap();
 }
 

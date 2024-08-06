@@ -1,7 +1,9 @@
 import puppeteer, { Browser, Page } from 'puppeteer';
-import { IOcr } from './ocr';
+import { IOcr } from './tesseract';
 import { IUser } from '../entity/user';
 import { IImageProcess } from './jimp';
+import delay from './delay';
+import { IWebController } from './puppeteer';
 
 export interface IBrowser {
   readonly loginUrl: string
@@ -20,44 +22,46 @@ class MyCard implements IBrowser {
 
     user: IUser;
 
-    browserWSEndpoint: string | undefined;
+    browserWSEndpoint?: string ;
 
-    page: Page | undefined;
+    page?: Page ;
 
-    run = 0
+    webController: IWebController
 
     constructor(
+      webController: IWebController,
       ocrService: IOcr,
       imageProcessService: IImageProcess,
       user: IUser,
     ) {
       this.ocrService = ocrService;
       this.imageProcessService = imageProcessService;
+      this.webController = webController;
       this.user = user;
     }
 
     async login(): Promise<void> {
-      let browser: Browser;
+      const browser = await this.webController.launchBroswer();
 
-      if (!this.browserWSEndpoint) {
-        browser = await puppeteer.launch({
-          headless: false,
-          args: [
-            '--no-sandbox',
-          ],
-        });
-        this.browserWSEndpoint = await browser.wsEndpoint();
-      } else {
-        browser = await puppeteer.connect({
-          browserWSEndpoint: this.browserWSEndpoint,
-        });
-      }
+      this.browserWSEndpoint = await browser.wsEndpoint();
+
+      console.log(this.browserWSEndpoint);
 
       const page = await browser.newPage();
       page.setDefaultNavigationTimeout(30000);
+
       this.page = page;
 
+      // set cookies
+      if (this.user.cookie?.length) {
+        await page.setCookie(...this.user.cookie);
+      }
+
       await page.goto(this.loginUrl);
+
+      // delay(1000000);
+
+      // return;
 
       await page.type('#Account', this.user.username);
 
@@ -66,22 +70,24 @@ class MyCard implements IBrowser {
         page.waitForNavigation(),
       ]);
 
+      await delay(1000);
       await page.type('#Password', this.user.password);
 
-      const captchaEl = await page.waitForSelector('img#captcha');
-      await captchaEl?.screenshot({ path: `${this.screenshotPath}/captcha.png` });
+      const captcha = await this.captchaRecognize();
 
-      await this.imageProcessService.imageProcessing(`${this.screenshotPath}/captcha.png`);
+      await page.type('#VerifyCode', captcha);
 
-      const recognizeResult = await this.ocrService.recognize(`${this.screenshotPath}/captchaProcess.png`);
+      const [_, navigation] = await Promise.allSettled([
+        page.click('#btnPassword'),
+        page.waitForNavigation({ timeout: 5000 }),
+      ]);
 
-      console.log(recognizeResult.data.text);
+      if (navigation.status === 'fulfilled') {
+        await page.goto(this.loginUrl);
+        await page.screenshot({ path: `${this.screenshotPath}/sucessLoginPage.png` });
 
-      await page.type('#VerifyCode', recognizeResult.data.text);
-
-      await page.screenshot({ path: `${this.screenshotPath}/loginPage.png` });
-
-      await page.click('#btnPassword');
+        return;
+      }
 
       await page.waitForFunction(
         `document.querySelector('div#browser_popup') 
@@ -89,16 +95,29 @@ class MyCard implements IBrowser {
         && document.querySelector('div#browser_popup').style.opacity == 1`,
       );
 
-      const phoneVerifyEl = await page.$('div#browser_popup');
-
-      await phoneVerifyEl?.screenshot({ path: `${this.screenshotPath}/notPhoneVerifyForm.png` });
+      /*
+       * 未驗證 form
+       * const phoneVerifyEl = await page.$('div#browser_popup');
+       * await phoneVerifyEl?.screenshot({ path: `${this.screenshotPath}/notPhoneVerifyForm.png` });
+       * #btnBrowser => 好
+       * #btnLater => 下次再說
+       */
 
       await Promise.all([
-        page?.click('#btnLater'),
+        page.click('#btnBrowser'),
         page.waitForNavigation(),
       ]);
+    }
 
-      await page.screenshot({ path: `${this.screenshotPath}/phoneVerifyPage.png` });
+    private async captchaRecognize() : Promise<string> {
+      const captchaEl = await this.page?.waitForSelector('img#captcha');
+      const buffer = await captchaEl?.screenshot();
+
+      const processImageBuffer = await this.imageProcessService.imageProcessing(buffer);
+
+      const recognizeResult = await this.ocrService.recognize(processImageBuffer);
+
+      return recognizeResult.data.text;
     }
 
     async verifyPhoneCode(code: string): Promise<void> {
@@ -118,6 +137,21 @@ class MyCard implements IBrowser {
       ]);
 
       await page.screenshot({ path: `${this.screenshotPath}/sucessLoginPage.png` });
+    }
+
+    async storeCookie(): Promise<void> {
+      if (!this.page) {
+        throw new Error('page not found');
+      }
+
+      const { page } = this;
+
+      const cookies = await page.cookies();
+
+      const globalSaveCookie = cookies.filter((cookie) => cookie.name === 'GlobalMyCard'
+      || cookie.name === '.MyCardMemberLogin' || cookie.name === 'ASP.NET_SessionId');
+
+      this.user.cookie = globalSaveCookie ? [...globalSaveCookie] : [];
     }
 }
 
